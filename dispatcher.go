@@ -102,7 +102,7 @@ func (d *Dispatcher) Handler(msg Message) Handler {
 // Dispatch calls handler for given event message
 func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
 	k := name(msg)
-	h := d.handler[name(msg)]
+	h := d.handler[k]
 
 	d.logf("dispatcher: dispatching %s", k)
 
