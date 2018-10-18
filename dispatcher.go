@@ -70,8 +70,8 @@ func isHandler(h Handler) bool {
 	return true
 }
 
-// Set sets handler, and override old handler if exists
-func (d *Dispatcher) Set(h Handler) {
+// Register registers a handler, and override old handler if exists
+func (d *Dispatcher) Register(h Handler) {
 	if !isHandler(h) {
 		panic("dispatcher: h is not a handler")
 	}

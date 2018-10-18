@@ -20,7 +20,7 @@ func TestDispatchSuccess(t *testing.T) {
 	d := New()
 
 	called := false
-	d.Set(func(ctx context.Context, m *msg1) error {
+	d.Register(func(ctx context.Context, m *msg1) error {
 		if ctx == nil {
 			t.Errorf("expected ctx not nil")
 		}
@@ -31,7 +31,7 @@ func TestDispatchSuccess(t *testing.T) {
 		}
 		return nil
 	})
-	d.Set(func(ctx context.Context, m *msg2) error {
+	d.Register(func(ctx context.Context, m *msg2) error {
 		t.Error("expected handler for msg2 was not called")
 		return nil
 	})
@@ -51,7 +51,7 @@ func TestDispatchNotFound(t *testing.T) {
 	}
 }
 
-func TestSetNotHandler(t *testing.T) {
+func TestRegisterNotHandler(t *testing.T) {
 	d := New()
 
 	testCases := []struct {
@@ -73,7 +73,7 @@ func TestSetNotHandler(t *testing.T) {
 				}
 			}()
 
-			d.Set(tC.h)
+			d.Register(tC.h)
 		})
 	}
 }
@@ -83,7 +83,7 @@ func TestDispatchReturnError(t *testing.T) {
 
 	d := New()
 
-	d.Set(func(ctx context.Context, m *msg1) error {
+	d.Register(func(ctx context.Context, m *msg1) error {
 		return e
 	})
 
