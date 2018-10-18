@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"log"
 	"reflect"
 )
 
@@ -13,7 +14,7 @@ func New() *Dispatcher {
 
 // Errors
 var (
-	ErrHandlerNotFound = errors.New("dispatcher: handler not found")
+	ErrNotFound = errors.New("dispatcher: handler not found")
 )
 
 // Handler is the event handler
@@ -27,6 +28,8 @@ type Message interface{}
 // Dispatcher is the event dispatcher
 type Dispatcher struct {
 	handler map[string]Handler
+
+	Logger *log.Logger
 }
 
 func rtName(r reflect.Type) string {
@@ -39,11 +42,11 @@ func rtName(r reflect.Type) string {
 }
 
 func nameFromHandler(h Handler) string {
-	return reflect.TypeOf(h).In(1).Elem().Name()
+	return rtName(reflect.TypeOf(h).In(1).Elem())
 }
 
 func name(msg Message) string {
-	return reflect.TypeOf(msg).Elem().Name()
+	return rtName(reflect.TypeOf(msg).Elem())
 }
 
 func isHandler(h Handler) bool {
@@ -70,6 +73,12 @@ func isHandler(h Handler) bool {
 	return true
 }
 
+func (d *Dispatcher) logf(format string, v ...interface{}) {
+	if d.Logger != nil {
+		d.Logger.Printf(format, v...)
+	}
+}
+
 // Register registers a handler, and override old handler if exists
 func (d *Dispatcher) Register(h Handler) {
 	if !isHandler(h) {
@@ -80,7 +89,9 @@ func (d *Dispatcher) Register(h Handler) {
 		d.handler = make(map[string]Handler)
 	}
 
-	d.handler[nameFromHandler(h)] = h
+	k := nameFromHandler(h)
+	d.handler[k] = h
+	d.logf("dispatcher: register %s", k)
 }
 
 // Handler returns handler for given message
@@ -90,10 +101,13 @@ func (d *Dispatcher) Handler(msg Message) Handler {
 
 // Dispatch calls handler for given event message
 func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
-	h := d.Handler(msg)
+	k := name(msg)
+	h := d.handler[name(msg)]
+
+	d.logf("dispatcher: dispatching %s", k)
 
 	if h == nil {
-		return ErrHandlerNotFound
+		return ErrNotFound
 	}
 
 	err := reflect.ValueOf(h).Call([]reflect.Value{

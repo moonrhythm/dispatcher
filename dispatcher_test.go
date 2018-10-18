@@ -46,7 +46,7 @@ func TestDispatchSuccess(t *testing.T) {
 func TestDispatchNotFound(t *testing.T) {
 	d := New()
 
-	if d.Dispatch(context.Background(), &msg1{}) != ErrHandlerNotFound {
+	if d.Dispatch(context.Background(), &msg1{}) != ErrNotFound {
 		t.Error("expected returns handler not found error")
 	}
 }
