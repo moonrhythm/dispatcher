@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 )
@@ -45,8 +46,12 @@ func nameFromHandler(h Handler) string {
 	return rtName(reflect.TypeOf(h).In(1).Elem())
 }
 
-func name(msg Message) string {
-	return rtName(reflect.TypeOf(msg).Elem())
+func nameFromMessage(msg Message) string {
+	t := reflect.TypeOf(msg)
+	if t.Kind() != reflect.Ptr {
+		return ""
+	}
+	return rtName(t.Elem())
 }
 
 func isHandler(h Handler) bool {
@@ -59,7 +64,10 @@ func isHandler(h Handler) bool {
 	if t.NumIn() != 2 {
 		return false
 	}
-	if rtName(t.In(0)) != "context.Context" {
+	if t.In(0).Kind() != reflect.Interface && rtName(t.In(0)) != "context.Context" {
+		return false
+	}
+	if t.In(1).Kind() != reflect.Ptr {
 		return false
 	}
 
@@ -96,16 +104,19 @@ func (d *Dispatcher) Register(h Handler) {
 
 // Handler returns handler for given message
 func (d *Dispatcher) Handler(msg Message) Handler {
-	return d.handler[name(msg)]
+	return d.handler[nameFromMessage(msg)]
 }
 
 // Dispatch calls handler for given event message
 func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
-	k := name(msg)
-	h := d.handler[k]
+	k := nameFromMessage(msg)
+	if k == "" {
+		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
+	}
 
 	d.logf("dispatcher: dispatching %s", k)
 
+	h := d.handler[k]
 	if h == nil {
 		return ErrNotFound
 	}
@@ -114,8 +125,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
 		reflect.ValueOf(ctx),
 		reflect.ValueOf(msg),
 	})[0].Interface()
-	if err == nil {
-		return nil
+	if err != nil {
+		return err.(error)
 	}
-	return err.(error)
+	return nil
 }

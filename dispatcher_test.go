@@ -91,3 +91,11 @@ func TestDispatchReturnError(t *testing.T) {
 		t.Errorf("expected dispatch return error")
 	}
 }
+
+func TestDispatchInvalidMessage(t *testing.T) {
+	d := New()
+	err := d.Dispatch(context.Background(), msg1{})
+	if err == nil {
+		t.Errorf("expected return error when dispatch struct")
+	}
+}
