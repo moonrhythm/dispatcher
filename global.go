@@ -1,15 +1,20 @@
 package dispatcher
 
-import "context"
+import (
+	"context"
+)
 
-var defaultDispatcher = New()
+// expose global vars
+var (
+	DefaultDispatcher = &Dispatcher{}
+)
 
 // Register registers a handler into default dispatcher
 func Register(h Handler) {
-	defaultDispatcher.Register(h)
+	DefaultDispatcher.Register(h)
 }
 
 // Dispatch dispatchs default dispatcher
 func Dispatch(ctx context.Context, msg Message) error {
-	return defaultDispatcher.Dispatch(ctx, msg)
+	return DefaultDispatcher.Dispatch(ctx, msg)
 }
