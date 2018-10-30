@@ -9,9 +9,9 @@ var (
 	DefaultDispatcher = &Dispatcher{}
 )
 
-// Register registers a handler into default dispatcher
-func Register(h Handler) {
-	DefaultDispatcher.Register(h)
+// Register registers handlers into default dispatcher
+func Register(hs ...Handler) {
+	DefaultDispatcher.Register(hs...)
 }
 
 // Dispatch dispatchs default dispatcher
