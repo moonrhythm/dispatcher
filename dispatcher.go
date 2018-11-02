@@ -30,7 +30,8 @@ type Message interface{}
 type Dispatcher struct {
 	handler map[string]Handler
 
-	Logger *log.Logger
+	Logger      *log.Logger
+	ErrorLogger *log.Logger
 }
 
 func rtName(r reflect.Type) string {
@@ -87,6 +88,12 @@ func (d *Dispatcher) logf(format string, v ...interface{}) {
 	}
 }
 
+func (d *Dispatcher) errlogf(format string, v ...interface{}) {
+	if d.ErrorLogger != nil {
+		d.ErrorLogger.Printf(format, v...)
+	}
+}
+
 // Register registers handlers, and override old handler if exists
 func (d *Dispatcher) Register(hs ...Handler) {
 	if d.handler == nil {
@@ -113,13 +120,16 @@ func (d *Dispatcher) Handler(msg Message) Handler {
 func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
 	k := msgName(msg)
 	if k == "" {
-		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
+		err := fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
+		d.errlogf("%v", err)
+		return err
 	}
 
 	d.logf("dispatcher: dispatching %s", k)
 
 	h := d.handler[k]
 	if h == nil {
+		d.errlogf("dispatcher: '%s' handler not found", k)
 		return ErrNotFound
 	}
 
@@ -128,6 +138,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
 		reflect.ValueOf(msg),
 	})[0].Interface()
 	if err != nil {
+		d.errlogf("dispatcher: '%s': %v", k, err)
 		return err.(error)
 	}
 	return nil
