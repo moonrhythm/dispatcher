@@ -43,6 +43,45 @@ func TestDispatchSuccess(t *testing.T) {
 	}
 }
 
+func TestDispatchMulti(t *testing.T) {
+	d := New()
+
+	called := 0
+	var errStop = errors.New("some error")
+
+	d.Register(func(ctx context.Context, m *msg1) error {
+		if ctx == nil {
+			t.Errorf("expected ctx not nil")
+		}
+
+		called++
+		if called == 1 && m.Name != "test1" {
+			t.Errorf("expected msg.Name to be 'test1'; got '%s'", m.Name)
+		}
+		if called == 2 && m.Name != "test2" {
+			t.Errorf("expected msg.Name to be 'test2'; got '%s'", m.Name)
+		}
+		if called == 3 {
+			return errStop
+		}
+		return nil
+	})
+
+	err := d.Dispatch(context.Background(),
+		&msg1{Name: "test1"},
+		&msg1{Name: "test2"},
+		&msg1{Name: "test3"},
+		&msg1{Name: "test4"},
+	)
+
+	if called != 3 {
+		t.Errorf("expected handler was called 3 times")
+	}
+	if err != errStop {
+		t.Errorf("expected error return")
+	}
+}
+
 func TestDispatchNotFound(t *testing.T) {
 	d := New()
 
