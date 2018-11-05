@@ -243,4 +243,69 @@ func TestDispatchAfter(t *testing.T) {
 			t.Errorf("expected handler was called")
 		}
 	})
+
+	t.Run("Negative duration", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		called := false
+		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
+			return nil
+		})
+
+		d.DispatchAfter(context.Background(), -time.Hour, nil, &msg1{})
+		time.Sleep(10 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
+	})
+}
+func TestDispatchAt(t *testing.T) {
+	t.Run("Future", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		called := false
+		resultCalled := false
+		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
+			return nil
+		})
+
+		d.DispatchAt(context.Background(), time.Now().Add(10*time.Millisecond),
+			func(err error) {
+				resultCalled = true
+				if err != nil {
+					t.Errorf("expected no error")
+				}
+			},
+			&msg1{},
+		)
+
+		time.Sleep(40 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
+		if !resultCalled {
+			t.Errorf("expected resultFn was called")
+		}
+	})
+
+	t.Run("Past", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		called := false
+		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
+			return nil
+		})
+
+		d.DispatchAt(context.Background(), time.Now().Add(-time.Hour), nil, &msg1{})
+		time.Sleep(10 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
+	})
 }

@@ -145,7 +145,8 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
 	return nil
 }
 
-// DispatchAfter calls dispatch after given time,
+// DispatchAfter calls dispatch after given duration
+// or run immediate if duration is negative,
 // then call resultFn with return error
 func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, resultFn func(err error), msg ...Message) {
 	if resultFn == nil {
@@ -160,4 +161,10 @@ func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, 
 			resultFn(ctx.Err())
 		}
 	}()
+}
+
+// DispatchAt calls dispatch at given time,
+// and will run immediate if time already passed
+func (d *Dispatcher) DispatchAt(ctx context.Context, t time.Time, resultFn func(err error), msg ...Message) {
+	d.DispatchAfter(ctx, time.Until(t), resultFn, msg...)
 }
