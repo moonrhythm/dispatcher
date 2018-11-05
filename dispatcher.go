@@ -109,8 +109,7 @@ func (d *Dispatcher) Handler(msg Message) Handler {
 	return d.handler[msgName(msg)]
 }
 
-// Dispatch calls handler for given event message
-func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
+func (d *Dispatcher) dispatch(ctx context.Context, msg Message) error {
 	k := msgName(msg)
 	if k == "" {
 		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
@@ -129,6 +128,18 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg Message) error {
 	})[0].Interface()
 	if err != nil {
 		return err.(error)
+	}
+	return nil
+}
+
+// Dispatch calls handler for given messages in sequence order,
+// when a handler returns error, dispatch will stop and return that error
+func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
+	for _, m := range msg {
+		err := d.dispatch(ctx, m)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
