@@ -15,6 +15,6 @@ func Register(hs ...Handler) {
 }
 
 // Dispatch dispatchs default dispatcher
-func Dispatch(ctx context.Context, msg Message) error {
-	return DefaultDispatcher.Dispatch(ctx, msg)
+func Dispatch(ctx context.Context, msg ...Message) error {
+	return DefaultDispatcher.Dispatch(ctx, msg...)
 }
