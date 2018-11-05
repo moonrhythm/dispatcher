@@ -214,11 +214,33 @@ func TestDispatchAfter(t *testing.T) {
 		t.Parallel()
 
 		d := New()
+		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
 			return nil
 		})
 
 		d.DispatchAfter(context.Background(), 10*time.Millisecond, nil, &msg1{})
 		time.Sleep(40 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
+	})
+
+	t.Run("Zero duration", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		called := false
+		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
+			return nil
+		})
+
+		d.DispatchAfter(context.Background(), 0, nil, &msg1{})
+		time.Sleep(10 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
 	})
 }
