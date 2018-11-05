@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
 )
 
 // New creates new dispatcher
@@ -142,4 +143,21 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
 		}
 	}
 	return nil
+}
+
+// DispatchAfter calls dispatch after given time,
+// then call resultFn with return error
+func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, resultFn func(err error), msg ...Message) {
+	if resultFn == nil {
+		resultFn = func(_ error) {}
+	}
+
+	go func() {
+		select {
+		case <-time.After(duration):
+			resultFn(d.Dispatch(ctx, msg...))
+		case <-ctx.Done():
+			resultFn(ctx.Err())
+		}
+	}()
 }

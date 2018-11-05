@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	. "github.com/moonrhythm/dispatcher"
 )
@@ -50,10 +51,6 @@ func TestDispatchMulti(t *testing.T) {
 	var errStop = errors.New("some error")
 
 	d.Register(func(ctx context.Context, m *msg1) error {
-		if ctx == nil {
-			t.Errorf("expected ctx not nil")
-		}
-
 		called++
 		if called == 1 && m.Name != "test1" {
 			t.Errorf("expected msg.Name to be 'test1'; got '%s'", m.Name)
@@ -137,4 +134,91 @@ func TestDispatchInvalidMessage(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected return error when dispatch struct")
 	}
+}
+
+func TestDispatchAfter(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		called := false
+		resultCalled := false
+		d.Register(func(ctx context.Context, m *msg1) error {
+			called = true
+			return nil
+		})
+
+		d.DispatchAfter(context.Background(), 10*time.Millisecond,
+			func(err error) {
+				resultCalled = true
+				if err != nil {
+					t.Errorf("expected no error")
+				}
+			},
+			&msg1{},
+		)
+
+		time.Sleep(40 * time.Millisecond)
+		if !called {
+			t.Errorf("expected handler was called")
+		}
+		if !resultCalled {
+			t.Errorf("expected resultFn was called")
+		}
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		retErr := errors.New("some error")
+		d.Register(func(ctx context.Context, m *msg1) error {
+			return retErr
+		})
+
+		d.DispatchAfter(context.Background(), 10*time.Millisecond,
+			func(err error) {
+				if err != retErr {
+					t.Errorf("expected error")
+				}
+			},
+			&msg1{},
+		)
+
+		time.Sleep(40 * time.Millisecond)
+	})
+
+	t.Run("Cancel", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		d.Register(func(ctx context.Context, m *msg1) error {
+			return nil
+		})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		d.DispatchAfter(ctx, 10*time.Millisecond,
+			func(err error) {
+				if err != context.Canceled {
+					t.Errorf("expected context canceled error")
+				}
+			},
+			&msg1{},
+		)
+		cancel()
+
+		time.Sleep(40 * time.Millisecond)
+	})
+
+	t.Run("No Result", func(t *testing.T) {
+		t.Parallel()
+
+		d := New()
+		d.Register(func(ctx context.Context, m *msg1) error {
+			return nil
+		})
+
+		d.DispatchAfter(context.Background(), 10*time.Millisecond, nil, &msg1{})
+		time.Sleep(40 * time.Millisecond)
+	})
 }
