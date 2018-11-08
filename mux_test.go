@@ -17,8 +17,8 @@ type msg2 struct {
 	Data int
 }
 
-func TestDispatchSuccess(t *testing.T) {
-	d := New()
+func TestMuxDispatchSuccess(t *testing.T) {
+	d := NewMux()
 
 	called := false
 	d.Register(func(ctx context.Context, m *msg1) error {
@@ -44,8 +44,8 @@ func TestDispatchSuccess(t *testing.T) {
 	}
 }
 
-func TestDispatchMulti(t *testing.T) {
-	d := New()
+func TestMuxDispatchMulti(t *testing.T) {
+	d := NewMux()
 
 	called := 0
 	var errStop = errors.New("some error")
@@ -65,6 +65,7 @@ func TestDispatchMulti(t *testing.T) {
 	})
 
 	err := d.Dispatch(context.Background(),
+		Messages(nil),
 		&msg1{Name: "test1"},
 		&msg1{Name: "test2"},
 		&msg1{Name: "test3"},
@@ -77,18 +78,34 @@ func TestDispatchMulti(t *testing.T) {
 	if err != errStop {
 		t.Errorf("expected error return")
 	}
+
+	called = 0
+	var msgs Messages
+	msgs.Push(&msg1{Name: "test2"}, &msg1{Name: "test3"})
+	err = d.Dispatch(context.Background(),
+		[]Message{&msg1{Name: "test1"}},
+		msgs,
+		&msg1{Name: "test4"},
+	)
+
+	if called != 3 {
+		t.Errorf("expected handler was called 3 times")
+	}
+	if err != errStop {
+		t.Errorf("expected error return")
+	}
 }
 
-func TestDispatchNotFound(t *testing.T) {
-	d := New()
+func TestMuxDispatchNotFound(t *testing.T) {
+	d := NewMux()
 
 	if d.Dispatch(context.Background(), &msg1{}) != ErrNotFound {
 		t.Error("expected returns handler not found error")
 	}
 }
 
-func TestRegisterNotHandler(t *testing.T) {
-	d := New()
+func TestMuxRegisterNotHandler(t *testing.T) {
+	d := NewMux()
 
 	testCases := []struct {
 		desc string
@@ -114,10 +131,10 @@ func TestRegisterNotHandler(t *testing.T) {
 	}
 }
 
-func TestDispatchReturnError(t *testing.T) {
+func TestMuxDispatchReturnError(t *testing.T) {
 	var e = errors.New("err!")
 
-	d := New()
+	d := NewMux()
 
 	d.Register(func(ctx context.Context, m *msg1) error {
 		return e
@@ -128,19 +145,19 @@ func TestDispatchReturnError(t *testing.T) {
 	}
 }
 
-func TestDispatchInvalidMessage(t *testing.T) {
-	d := New()
+func TestMuxDispatchInvalidMessage(t *testing.T) {
+	d := NewMux()
 	err := d.Dispatch(context.Background(), msg1{})
 	if err == nil {
 		t.Errorf("expected return error when dispatch struct")
 	}
 }
 
-func TestDispatchAfter(t *testing.T) {
+func TestMuxDispatchAfter(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		resultCalled := false
 		d.Register(func(ctx context.Context, m *msg1) error {
@@ -170,7 +187,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		retErr := errors.New("some error")
 		d.Register(func(ctx context.Context, m *msg1) error {
 			return retErr
@@ -191,7 +208,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Cancel", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		d.Register(func(ctx context.Context, m *msg1) error {
 			return nil
 		})
@@ -213,7 +230,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("No Result", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
@@ -230,7 +247,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Zero duration", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
@@ -247,7 +264,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Negative duration", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
@@ -262,11 +279,11 @@ func TestDispatchAfter(t *testing.T) {
 	})
 }
 
-func TestDispatchAt(t *testing.T) {
+func TestMuxDispatchAt(t *testing.T) {
 	t.Run("Future", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		resultCalled := false
 		d.Register(func(ctx context.Context, m *msg1) error {
@@ -296,7 +313,7 @@ func TestDispatchAt(t *testing.T) {
 	t.Run("Past", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true

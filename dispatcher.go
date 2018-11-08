@@ -3,15 +3,12 @@ package dispatcher
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"reflect"
-	"time"
 )
 
-// New creates new dispatcher
-func New() *Dispatcher {
-	return &Dispatcher{}
+// Dispatcher type
+type Dispatcher interface {
+	Dispatch(context.Context, ...Message) error
 }
 
 // Errors
@@ -27,11 +24,17 @@ type Handler interface{}
 // Message is the event message
 type Message interface{}
 
-// Dispatcher is the event dispatcher
-type Dispatcher struct {
-	handler map[string]Handler
+// Messages is the message collection
+type Messages []Message
 
-	Logger *log.Logger
+// Push appends messages into collection
+func (msgs *Messages) Push(ms ...Message) {
+	*msgs = append(*msgs, ms...)
+}
+
+// Clear clears messages
+func (msgs *Messages) Clear() {
+	*msgs = nil
 }
 
 func rtName(r reflect.Type) string {
@@ -80,91 +83,4 @@ func isHandler(h Handler) bool {
 	}
 
 	return true
-}
-
-func (d *Dispatcher) logf(format string, v ...interface{}) {
-	if d.Logger != nil {
-		d.Logger.Printf(format, v...)
-	}
-}
-
-// Register registers handlers, and override old handler if exists
-func (d *Dispatcher) Register(hs ...Handler) {
-	if d.handler == nil {
-		d.handler = make(map[string]Handler)
-	}
-
-	for _, h := range hs {
-		if !isHandler(h) {
-			panic("dispatcher: h is not a handler")
-		}
-
-		k := msgNameFromHandler(h)
-		d.handler[k] = h
-		d.logf("dispatcher: register %s", k)
-	}
-}
-
-// Handler returns handler for given message
-func (d *Dispatcher) Handler(msg Message) Handler {
-	return d.handler[msgName(msg)]
-}
-
-func (d *Dispatcher) dispatch(ctx context.Context, msg Message) error {
-	k := msgName(msg)
-	if k == "" {
-		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
-	}
-
-	d.logf("dispatcher: dispatching %s", k)
-
-	h := d.handler[k]
-	if h == nil {
-		return ErrNotFound
-	}
-
-	err := reflect.ValueOf(h).Call([]reflect.Value{
-		reflect.ValueOf(ctx),
-		reflect.ValueOf(msg),
-	})[0].Interface()
-	if err != nil {
-		return err.(error)
-	}
-	return nil
-}
-
-// Dispatch calls handler for given messages in sequence order,
-// when a handler returns error, dispatch will stop and return that error
-func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
-	for _, m := range msg {
-		err := d.dispatch(ctx, m)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// DispatchAfter calls dispatch after given duration
-// or run immediate if duration is negative,
-// then call resultFn with return error
-func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, resultFn func(err error), msg ...Message) {
-	if resultFn == nil {
-		resultFn = func(_ error) {}
-	}
-
-	go func() {
-		select {
-		case <-time.After(duration):
-			resultFn(d.Dispatch(ctx, msg...))
-		case <-ctx.Done():
-			resultFn(ctx.Err())
-		}
-	}()
-}
-
-// DispatchAt calls dispatch at given time,
-// and will run immediate if time already passed
-func (d *Dispatcher) DispatchAt(ctx context.Context, t time.Time, resultFn func(err error), msg ...Message) {
-	d.DispatchAfter(ctx, time.Until(t), resultFn, msg...)
 }
