@@ -17,6 +17,12 @@ type HTTPEncoder func(w http.ResponseWriter, r *http.Request, v interface{}) err
 // HTTPErrorEncoder is the function to encode error into http response writer
 type HTTPErrorEncoder func(w http.ResponseWriter, r *http.Request, err error)
 
+type httpError struct {
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+	Error string      `json:"error"`
+}
+
 // JSONHTTPDecoder creates new json http decoder
 func JSONHTTPDecoder() HTTPDecoder {
 	return func(r *http.Request, v interface{}) error {
@@ -28,7 +34,28 @@ func JSONHTTPDecoder() HTTPDecoder {
 func JSONHTTPEncoder() HTTPEncoder {
 	return func(w http.ResponseWriter, r *http.Request, v interface{}) error {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Dispatch-Status", "1")
 		return json.NewEncoder(w).Encode(v)
+	}
+}
+
+// JSONHTTPErrorEncoder creates new json http error encoder
+func JSONHTTPErrorEncoder() HTTPErrorEncoder {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Dispatch-Status", "0")
+
+		typeRef := reflect.TypeOf(err)
+		typeName := rtName(typeRef)
+		if typeName == "" {
+			typeName = typeRef.String()
+		}
+
+		json.NewEncoder(w).Encode(&httpError{
+			typeName,
+			err,
+			err.Error(),
+		})
 	}
 }
 
@@ -59,9 +86,7 @@ func (h *HTTPHandler) init() {
 			h.Encoder = JSONHTTPEncoder()
 		}
 		if h.ErrorEncoder == nil {
-			h.ErrorEncoder = func(w http.ResponseWriter, r *http.Request, err error) {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
+			h.ErrorEncoder = JSONHTTPErrorEncoder()
 		}
 		if h.ResultField == "" {
 			h.ResultField = "Result"
