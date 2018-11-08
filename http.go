@@ -92,22 +92,22 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refReq := reflect.New(t)
-	req := refReq.Interface()
-	err := h.Decoder(r, req)
+	refM := reflect.New(t)
+	m := refM.Interface()
+	err := h.Decoder(r, m)
 	if err != nil {
 		h.ErrorEncoder(w, r, err)
 		return
 	}
 
-	err = h.Dispatcher.Dispatch(r.Context(), req)
+	err = h.Dispatcher.Dispatch(r.Context(), m)
 	if err != nil {
 		h.ErrorEncoder(w, r, err)
 		return
 	}
 
-	resp := refReq.Elem().FieldByName(h.ResultField)
-	err = h.Encoder(w, r, resp.Interface())
+	refResult := refM.Elem().FieldByName(h.ResultField)
+	err = h.Encoder(w, r, refResult.Interface())
 	if err != nil {
 		h.ErrorEncoder(w, r, err)
 		return
