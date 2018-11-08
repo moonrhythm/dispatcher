@@ -3,7 +3,6 @@ package dispatcher_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +20,7 @@ type httpReq1 struct {
 	} `json:"-"`
 }
 
-func TestHTTPRPC(t *testing.T) {
+func TestHTTPHandler(t *testing.T) {
 	var errNotATester = errors.New("not a tester")
 
 	d := New()
@@ -33,15 +32,8 @@ func TestHTTPRPC(t *testing.T) {
 		return nil
 	})
 
-	hd := HTTPRPC{
+	hd := HTTPHandler{
 		Dispatcher: d,
-		Decoder: func(r *http.Request, v interface{}) error {
-			return json.NewDecoder(r.Body).Decode(v)
-		},
-		Encoder: func(w http.ResponseWriter, r *http.Request, v interface{}) error {
-			w.Header().Set("Content-Type", "application/json")
-			return json.NewEncoder(w).Encode(v)
-		},
 		ErrorEncoder: func(w http.ResponseWriter, r *http.Request, err error) {
 			if err == errNotATester {
 				http.Error(w, err.Error(), 400)
