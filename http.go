@@ -34,7 +34,7 @@ func JSONHTTPEncoder() HTTPEncoder {
 
 // HTTPHandler wraps dispatcher into http handler
 type HTTPHandler struct {
-	Dispatcher   *Dispatcher
+	Dispatcher   Dispatcher
 	Decoder      HTTPDecoder
 	Encoder      HTTPEncoder
 	ErrorEncoder HTTPErrorEncoder
@@ -50,7 +50,7 @@ func (h *HTTPHandler) init() {
 			h.m = make(map[string]reflect.Type)
 		}
 		if h.Dispatcher == nil {
-			h.Dispatcher = DefaultDispatcher
+			h.Dispatcher = DefaultMux
 		}
 		if h.Decoder == nil {
 			h.Decoder = JSONHTTPDecoder()
