@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"reflect"
 )
 
 // Dispatcher type
@@ -34,4 +35,52 @@ func (msgs *Messages) Push(ms ...Message) {
 // Clear clears messages
 func (msgs *Messages) Clear() {
 	*msgs = nil
+}
+
+func rtName(r reflect.Type) string {
+	pkg := r.PkgPath()
+	name := r.Name()
+	if pkg == "" {
+		return name
+	}
+	return pkg + "." + name
+}
+
+func msgNameFromHandler(h Handler) string {
+	return rtName(reflect.TypeOf(h).In(1).Elem())
+}
+
+func msgName(msg Message) string {
+	t := reflect.TypeOf(msg)
+	if t.Kind() != reflect.Ptr {
+		return ""
+	}
+	return rtName(t.Elem())
+}
+
+func isHandler(h Handler) bool {
+	t := reflect.TypeOf(h)
+
+	if t.Kind() != reflect.Func {
+		return false
+	}
+
+	if t.NumIn() != 2 {
+		return false
+	}
+	if t.In(0).Kind() != reflect.Interface && rtName(t.In(0)) != "context.Context" {
+		return false
+	}
+	if t.In(1).Kind() != reflect.Ptr {
+		return false
+	}
+
+	if t.NumOut() != 1 {
+		return false
+	}
+	if rtName(t.Out(0)) != "error" {
+		return false
+	}
+
+	return true
 }
