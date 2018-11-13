@@ -37,6 +37,10 @@ func TestDispatchSuccess(t *testing.T) {
 		return nil
 	})
 
+	if d.Handler(new(msg1)) == nil {
+		t.Errorf("expected get registered handler not nil")
+	}
+
 	d.Dispatch(context.Background(), &msg1{Name: "test1"})
 
 	if !called {
