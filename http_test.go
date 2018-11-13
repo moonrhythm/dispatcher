@@ -23,7 +23,7 @@ type httpReq1 struct {
 func TestHTTPHandler(t *testing.T) {
 	var errNotATester = errors.New("not a tester")
 
-	d := NewMux()
+	d := New()
 	d.Register(func(_ context.Context, m *httpReq1) error {
 		if m.Name != "tester" {
 			return errNotATester
