@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 )
@@ -30,11 +29,9 @@ type Message interface{}
 // Dispatcher is the event dispatcher
 type Dispatcher struct {
 	handler map[string]Handler
-
-	Logger *log.Logger
 }
 
-func rtName(r reflect.Type) string {
+func reflectTypeName(r reflect.Type) string {
 	pkg := r.PkgPath()
 	name := r.Name()
 	if pkg == "" {
@@ -43,16 +40,21 @@ func rtName(r reflect.Type) string {
 	return pkg + "." + name
 }
 
-func msgNameFromHandler(h Handler) string {
-	return rtName(reflect.TypeOf(h).In(1).Elem())
+// MessageNameFromHandler gets message name from handler
+func MessageNameFromHandler(h Handler) string {
+	if !isHandler(h) {
+		return ""
+	}
+	return reflectTypeName(reflect.TypeOf(h).In(1).Elem())
 }
 
-func msgName(msg Message) string {
+// MessageName gets message name
+func MessageName(msg Message) string {
 	t := reflect.TypeOf(msg)
 	if t.Kind() != reflect.Ptr {
 		return ""
 	}
-	return rtName(t.Elem())
+	return reflectTypeName(t.Elem())
 }
 
 func isHandler(h Handler) bool {
@@ -65,7 +67,7 @@ func isHandler(h Handler) bool {
 	if t.NumIn() != 2 {
 		return false
 	}
-	if t.In(0).Kind() != reflect.Interface && rtName(t.In(0)) != "context.Context" {
+	if t.In(0).Kind() != reflect.Interface && reflectTypeName(t.In(0)) != "context.Context" {
 		return false
 	}
 	if t.In(1).Kind() != reflect.Ptr {
@@ -75,17 +77,11 @@ func isHandler(h Handler) bool {
 	if t.NumOut() != 1 {
 		return false
 	}
-	if rtName(t.Out(0)) != "error" {
+	if reflectTypeName(t.Out(0)) != "error" {
 		return false
 	}
 
 	return true
-}
-
-func (d *Dispatcher) logf(format string, v ...interface{}) {
-	if d.Logger != nil {
-		d.Logger.Printf(format, v...)
-	}
 }
 
 // Register registers handlers, and override old handler if exists
@@ -95,28 +91,24 @@ func (d *Dispatcher) Register(hs ...Handler) {
 	}
 
 	for _, h := range hs {
-		if !isHandler(h) {
+		k := MessageNameFromHandler(h)
+		if k == "" {
 			panic("dispatcher: h is not a handler")
 		}
-
-		k := msgNameFromHandler(h)
 		d.handler[k] = h
-		d.logf("dispatcher: register %s", k)
 	}
 }
 
 // Handler returns handler for given message
 func (d *Dispatcher) Handler(msg Message) Handler {
-	return d.handler[msgName(msg)]
+	return d.handler[MessageName(msg)]
 }
 
 func (d *Dispatcher) dispatch(ctx context.Context, msg Message) error {
-	k := msgName(msg)
+	k := MessageName(msg)
 	if k == "" {
 		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
 	}
-
-	d.logf("dispatcher: dispatching %s", k)
 
 	h := d.handler[k]
 	if h == nil {
