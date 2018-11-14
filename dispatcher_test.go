@@ -18,7 +18,7 @@ type msg2 struct {
 }
 
 func TestDispatchSuccess(t *testing.T) {
-	d := New()
+	d := NewMux()
 
 	called := false
 	d.Register(func(ctx context.Context, m *msg1) error {
@@ -49,7 +49,7 @@ func TestDispatchSuccess(t *testing.T) {
 }
 
 func TestDispatchMulti(t *testing.T) {
-	d := New()
+	d := NewMux()
 
 	called := 0
 	var errStop = errors.New("some error")
@@ -68,7 +68,7 @@ func TestDispatchMulti(t *testing.T) {
 		return nil
 	})
 
-	err := d.Dispatch(context.Background(),
+	err := Dispatch(context.Background(), d,
 		&msg1{Name: "test1"},
 		&msg1{Name: "test2"},
 		&msg1{Name: "test3"},
@@ -84,7 +84,7 @@ func TestDispatchMulti(t *testing.T) {
 }
 
 func TestDispatchNotFound(t *testing.T) {
-	d := New()
+	d := NewMux()
 
 	if d.Dispatch(context.Background(), &msg1{}) != ErrNotFound {
 		t.Error("expected returns handler not found error")
@@ -92,7 +92,7 @@ func TestDispatchNotFound(t *testing.T) {
 }
 
 func TestRegisterNotHandler(t *testing.T) {
-	d := New()
+	d := NewMux()
 
 	testCases := []struct {
 		desc string
@@ -121,7 +121,7 @@ func TestRegisterNotHandler(t *testing.T) {
 func TestDispatchReturnError(t *testing.T) {
 	var e = errors.New("err!")
 
-	d := New()
+	d := NewMux()
 
 	d.Register(func(ctx context.Context, m *msg1) error {
 		return e
@@ -133,7 +133,7 @@ func TestDispatchReturnError(t *testing.T) {
 }
 
 func TestDispatchInvalidMessage(t *testing.T) {
-	d := New()
+	d := NewMux()
 	err := d.Dispatch(context.Background(), msg1{})
 	if err == nil {
 		t.Errorf("expected return error when dispatch struct")
@@ -144,7 +144,7 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		resultCalled := false
 		d.Register(func(ctx context.Context, m *msg1) error {
@@ -152,7 +152,7 @@ func TestDispatchAfter(t *testing.T) {
 			return nil
 		})
 
-		d.DispatchAfter(context.Background(), 10*time.Millisecond,
+		DispatchAfter(context.Background(), d, 10*time.Millisecond,
 			func(err error) {
 				resultCalled = true
 				if err != nil {
@@ -174,13 +174,13 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		retErr := errors.New("some error")
 		d.Register(func(ctx context.Context, m *msg1) error {
 			return retErr
 		})
 
-		d.DispatchAfter(context.Background(), 10*time.Millisecond,
+		DispatchAfter(context.Background(), d, 10*time.Millisecond,
 			func(err error) {
 				if err != retErr {
 					t.Errorf("expected error")
@@ -195,13 +195,13 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Cancel", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		d.Register(func(ctx context.Context, m *msg1) error {
 			return nil
 		})
 
 		ctx, cancel := context.WithCancel(context.Background())
-		d.DispatchAfter(ctx, 10*time.Millisecond,
+		DispatchAfter(ctx, d, 10*time.Millisecond,
 			func(err error) {
 				if err != context.Canceled {
 					t.Errorf("expected context canceled error")
@@ -217,14 +217,14 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("No Result", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
 			return nil
 		})
 
-		d.DispatchAfter(context.Background(), 10*time.Millisecond, nil, &msg1{})
+		DispatchAfter(context.Background(), d, 10*time.Millisecond, nil, &msg1{})
 		time.Sleep(40 * time.Millisecond)
 		if !called {
 			t.Errorf("expected handler was called")
@@ -234,14 +234,14 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Zero duration", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
 			return nil
 		})
 
-		d.DispatchAfter(context.Background(), 0, nil, &msg1{})
+		DispatchAfter(context.Background(), d, 0, nil, &msg1{})
 		time.Sleep(10 * time.Millisecond)
 		if !called {
 			t.Errorf("expected handler was called")
@@ -251,14 +251,14 @@ func TestDispatchAfter(t *testing.T) {
 	t.Run("Negative duration", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
 			return nil
 		})
 
-		d.DispatchAfter(context.Background(), -time.Hour, nil, &msg1{})
+		DispatchAfter(context.Background(), d, -time.Hour, nil, &msg1{})
 		time.Sleep(10 * time.Millisecond)
 		if !called {
 			t.Errorf("expected handler was called")
@@ -270,7 +270,7 @@ func TestDispatchAt(t *testing.T) {
 	t.Run("Future", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		resultCalled := false
 		d.Register(func(ctx context.Context, m *msg1) error {
@@ -278,7 +278,7 @@ func TestDispatchAt(t *testing.T) {
 			return nil
 		})
 
-		d.DispatchAt(context.Background(), time.Now().Add(10*time.Millisecond),
+		DispatchAt(context.Background(), d, time.Now().Add(10*time.Millisecond),
 			func(err error) {
 				resultCalled = true
 				if err != nil {
@@ -300,14 +300,14 @@ func TestDispatchAt(t *testing.T) {
 	t.Run("Past", func(t *testing.T) {
 		t.Parallel()
 
-		d := New()
+		d := NewMux()
 		called := false
 		d.Register(func(ctx context.Context, m *msg1) error {
 			called = true
 			return nil
 		})
 
-		d.DispatchAt(context.Background(), time.Now().Add(-time.Hour), nil, &msg1{})
+		DispatchAt(context.Background(), d, time.Now().Add(-time.Hour), nil, &msg1{})
 		time.Sleep(10 * time.Millisecond)
 		if !called {
 			t.Errorf("expected handler was called")

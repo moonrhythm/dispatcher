@@ -3,15 +3,9 @@ package dispatcher
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"time"
 )
-
-// New creates new dispatcher
-func New() *Dispatcher {
-	return &Dispatcher{}
-}
 
 // Errors
 var (
@@ -27,8 +21,8 @@ type Handler interface{}
 type Message interface{}
 
 // Dispatcher is the event dispatcher
-type Dispatcher struct {
-	handler map[string]Handler
+type Dispatcher interface {
+	Dispatch(context.Context, Message) error
 }
 
 func reflectTypeName(r reflect.Type) string {
@@ -84,52 +78,11 @@ func isHandler(h Handler) bool {
 	return true
 }
 
-// Register registers handlers, and override old handler if exists
-func (d *Dispatcher) Register(hs ...Handler) {
-	if d.handler == nil {
-		d.handler = make(map[string]Handler)
-	}
-
-	for _, h := range hs {
-		k := MessageNameFromHandler(h)
-		if k == "" {
-			panic("dispatcher: h is not a handler")
-		}
-		d.handler[k] = h
-	}
-}
-
-// Handler returns handler for given message
-func (d *Dispatcher) Handler(msg Message) Handler {
-	return d.handler[MessageName(msg)]
-}
-
-func (d *Dispatcher) dispatch(ctx context.Context, msg Message) error {
-	k := MessageName(msg)
-	if k == "" {
-		return fmt.Errorf("dispatcher: invalid message type '%s'", reflect.TypeOf(msg))
-	}
-
-	h := d.handler[k]
-	if h == nil {
-		return ErrNotFound
-	}
-
-	err := reflect.ValueOf(h).Call([]reflect.Value{
-		reflect.ValueOf(ctx),
-		reflect.ValueOf(msg),
-	})[0].Interface()
-	if err != nil {
-		return err.(error)
-	}
-	return nil
-}
-
 // Dispatch calls handler for given messages in sequence order,
 // when a handler returns error, dispatch will stop and return that error
-func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
+func Dispatch(ctx context.Context, d Dispatcher, msg ...Message) error {
 	for _, m := range msg {
-		err := d.dispatch(ctx, m)
+		err := d.Dispatch(ctx, m)
 		if err != nil {
 			return err
 		}
@@ -140,7 +93,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, msg ...Message) error {
 // DispatchAfter calls dispatch after given duration
 // or run immediate if duration is negative,
 // then call resultFn with return error
-func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, resultFn func(err error), msg ...Message) {
+func DispatchAfter(ctx context.Context, d Dispatcher, duration time.Duration, resultFn func(err error), msg ...Message) {
 	if resultFn == nil {
 		resultFn = func(_ error) {}
 	}
@@ -148,7 +101,7 @@ func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, 
 	go func() {
 		select {
 		case <-time.After(duration):
-			resultFn(d.Dispatch(ctx, msg...))
+			resultFn(Dispatch(ctx, d, msg...))
 		case <-ctx.Done():
 			resultFn(ctx.Err())
 		}
@@ -157,6 +110,6 @@ func (d *Dispatcher) DispatchAfter(ctx context.Context, duration time.Duration, 
 
 // DispatchAt calls dispatch at given time,
 // and will run immediate if time already passed
-func (d *Dispatcher) DispatchAt(ctx context.Context, t time.Time, resultFn func(err error), msg ...Message) {
-	d.DispatchAfter(ctx, time.Until(t), resultFn, msg...)
+func DispatchAt(ctx context.Context, d Dispatcher, t time.Time, resultFn func(err error), msg ...Message) {
+	DispatchAfter(ctx, d, time.Until(t), resultFn, msg...)
 }
