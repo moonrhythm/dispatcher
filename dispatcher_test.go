@@ -314,3 +314,48 @@ func TestDispatchAt(t *testing.T) {
 		}
 	})
 }
+
+type benchMsg struct {
+	A, B   int
+	Result int
+}
+
+func BenchmarkDispatch(b *testing.B) {
+	b.Run("Direct call function", func(b *testing.B) {
+		f := func(_ context.Context, m *benchMsg) error {
+			m.Result = m.A + m.B
+			return nil
+		}
+
+		for i := 0; i < b.N; i++ {
+			f(context.Background(), &benchMsg{A: 1, B: 2})
+		}
+	})
+
+	b.Run("Direct call function from map", func(b *testing.B) {
+		k := MessageName(new(benchMsg))
+
+		m := map[string]func(context.Context, *benchMsg) error{
+			k: func(_ context.Context, m *benchMsg) error {
+				m.Result = m.A + m.B
+				return nil
+			},
+		}
+
+		for i := 0; i < b.N; i++ {
+			m[k](context.Background(), &benchMsg{A: 1, B: 2})
+		}
+	})
+
+	b.Run("Dispatch", func(b *testing.B) {
+		d := NewMux()
+		d.Register(func(_ context.Context, m *benchMsg) error {
+			m.Result = m.A + m.B
+			return nil
+		})
+
+		for i := 0; i < b.N; i++ {
+			d.Dispatch(context.Background(), &benchMsg{A: 1, B: 2})
+		}
+	})
+}
