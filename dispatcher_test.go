@@ -91,9 +91,8 @@ func TestDispatchNotFound(t *testing.T) {
 	d := NewMux()
 
 	err := d.Dispatch(context.Background(), &msg1{})
-	if !errors.Is(err, ErrNotFound) {
-		t.Error("expected returns handler not found error")
-	}
+	assert.True(t, errors.Is(err, ErrNotFound), "expected returns handler not found error")
+	assert.True(t, errors.Unwrap(err) == ErrNotFound)
 	assert.Contains(t, err.Error(), "msg1")
 }
 
