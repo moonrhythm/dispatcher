@@ -45,7 +45,7 @@ func (d *Mux) Dispatch(ctx context.Context, msg Message) error {
 
 	h := d.handler[k]
 	if h == nil {
-		return ErrNotFound
+		return &errNotFoundWithMessage{Message: k}
 	}
 
 	err := reflect.ValueOf(h).Call([]reflect.Value{

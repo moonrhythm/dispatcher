@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -11,6 +12,22 @@ import (
 var (
 	ErrNotFound = errors.New("dispatcher: handler not found")
 )
+
+type errNotFoundWithMessage struct {
+	Message string
+}
+
+func (err *errNotFoundWithMessage) Error() string {
+	return fmt.Sprintf("dispatcher: handler not found for message '%s'", err.Message)
+}
+
+func (err *errNotFoundWithMessage) Unwrap() error {
+	return ErrNotFound
+}
+
+func (err *errNotFoundWithMessage) Is(e error) bool {
+	return e == ErrNotFound
+}
 
 // Handler is the event handler
 //
