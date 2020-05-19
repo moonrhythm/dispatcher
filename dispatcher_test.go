@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/moonrhythm/dispatcher"
 )
 
@@ -86,9 +88,10 @@ func TestDispatchMulti(t *testing.T) {
 func TestDispatchNotFound(t *testing.T) {
 	d := NewMux()
 
-	if d.Dispatch(context.Background(), &msg1{}) != ErrNotFound {
-		t.Error("expected returns handler not found error")
-	}
+	err := d.Dispatch(context.Background(), &msg1{})
+	assert.True(t, errors.Is(err, ErrNotFound), "expected returns handler not found error")
+	assert.True(t, errors.Unwrap(err) == ErrNotFound)
+	assert.Contains(t, err.Error(), "msg1")
 }
 
 func TestRegisterNotHandler(t *testing.T) {
